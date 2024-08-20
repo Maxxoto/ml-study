@@ -15,8 +15,6 @@ Replicate:
 
 ### Available Models
 
-We are offering three models:
-
 - `FLUX.1 [pro]` the base model, available via API
 - `FLUX.1 [dev]` guidance-distilled variant
 - `FLUX.1 [schnell]` guidance and step-distilled variant
