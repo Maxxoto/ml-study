@@ -103,40 +103,53 @@ const chat = async (messages, handler) => {
   return answer;
 };
 
-const REPLY_PROMPT = `You run in a process of Question, Thought, Action, Observation.
+const SYSTEM_PROMPT = `Process: Question → Thought → Action → Observation → Answer
 
-Use Thought to describe your thoughts about the question you have been asked.
-Observation will be the result of running those actions.
-Finally at the end, state the Answer.
+Thought: Describe what you need to do.
+Action: Execute the required function.
+Observation: Record the result.
+Answer: Provide the final answer.
+Example:
 
-Example session:
+Question: How much is $125 in IDR?
 
-Question:How much is $125 in IDR?
-Thought: I need to find the exchange rate between USD and IDR
+Thought: Find the exchange rate from USD to IDR.
 Action: get_exchange_rate: USD to IDR
-PAUSE
+Wait for the result...
 
-You will called again with this:
+Observation: 16,000 IDR per USD.
+Thought: Multiply 125 by the exchange rate.
+Action: calculate: 125 * 16000
+Wait for the result...
 
-Observation: 1 USD = 15000 IDR
+Observation: 125 * 16,000 = 2,000,000
+Answer: 2,000,000 IDR.
+Now, let’s continue with the next question:
 
-Thought: I need to multiply this by 125
-Action: calculate: 125 * 15000
-PAUSE
+Question: What is 5 SGD in IDR?
 
-You will be called again with this:
+Thought: Find the exchange rate from SGD to IDR.
+Action: get_exchange_rate: SGD to IDR
+Wait for the result...
 
-Observation: 125 * 15000 = 1875000
+Observation: 6,500 IDR per SGD.
+Thought: Multiply 5 by the exchange rate.
+Action: calculate: 5 * 6500
+Wait for the result...
 
-If you have the answer, output it as the Answer.
-
-Answer: 125 USD is equal to 1,875,000 IDR.
-
-Now it's your turn:`;
+Observation: 5 * 6,500 = 32,500
+Answer: 32,500 IDR`;
 
 async function get_exchange_rate(from, to) {
   const url = `https://api.exchangerate-api.com/v4/latest/${from}`;
+  console.log('LLM calling Exchange API....');
+  console.log({
+    'Exchange API URL': url,
+  });
   const response = await fetch(url);
+  console.log({
+    res: response,
+  });
   if (!response.ok) {
     throw new Error(
       `HTTP error with the status: ${response.status} ${response.statusText}`,
@@ -156,7 +169,7 @@ const reply = async (context) => {
   const { inquiry, history, stream, attempt } = context;
   const tried = context.attempt || 0;
   const messages = [];
-  messages.push({ role: 'system', content: REPLY_PROMPT });
+  messages.push({ role: 'system', content: SYSTEM_PROMPT });
   const relevant = history.slice(-4);
   relevant.forEach((msg) => {
     const { inquiry, answer } = msg;
@@ -166,8 +179,11 @@ const reply = async (context) => {
   messages.push({ role: 'user', content: inquiry });
   const answer = await chat(messages, stream);
   let nextPrompt = '';
-  if (answer.includes('PAUSE') && answer.includes('Action')) {
-    const action = answer.split('Action:')[1].split('PAUSE')[0];
+  if (answer.includes('Wait for the result...') && answer.includes('Action')) {
+    console.log('GET TOOLS...');
+    const action = answer
+      .split('Action:')[1]
+      .split('Wait for the result...')[0];
     const tool = action.split(':')[0].split(':')[0].trim();
     const args = action.split(':')[1].split('\n')[0].trim().split(' to ');
     if (tools.includes(tool)) {
@@ -175,11 +191,11 @@ const reply = async (context) => {
         const from = args[0];
         const to = args[1];
         const rate = await get_exchange_rate(from, to);
-        nextPrompt = `Observation: 1 ${from} = ${rate} ${to}`;
+        nextPrompt = `[Observation Tool]: 1 ${from} = ${rate} ${to}`;
       } else if (tool === 'calculate') {
         const expression = args[0];
         const result = calculate(expression);
-        nextPrompt = `Observation: ${args[0]} = ${result}`;
+        nextPrompt = `[Observation Tool]: ${args[0]} = ${result}`;
       } else {
         nextPrompt = 'Observation: tool not found';
       }
@@ -195,7 +211,7 @@ const reply = async (context) => {
     }
   }
   if (answer.includes('Answer')) {
-    return;
+    return { answer, ...context };
   }
   return { answer, ...context };
 };
@@ -227,6 +243,7 @@ const reply = async (context) => {
 
       const stream = (part) => response.write(part);
       const context = { inquiry, history, stream };
+      console.log(context);
       const start = Date.now();
       const result = await reply(context);
       const duration = Date.now() - start;
