@@ -1,0 +1,16 @@
+{
+  "name": "llama-simple-function-calling",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --watch index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "fs": "0.0.1-security"
+  },
+  "type": "module"
+}
