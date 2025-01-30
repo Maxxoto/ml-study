@@ -11,6 +11,8 @@ seaborn = "*"
 wordcloud = "*"
 scikit-learn = "*"
 plotly = "*"
+yellowbrick = "*"
+imblearn = "*"
 
 [dev-packages]
 ipykernel = "*"
