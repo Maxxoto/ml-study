@@ -14,6 +14,7 @@ plotly = "*"
 yellowbrick = "*"
 imblearn = "*"
 scikit-optimize = "*"
+kaggle = "*"
 
 [dev-packages]
 ipykernel = "*"
